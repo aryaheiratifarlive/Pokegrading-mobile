@@ -4,12 +4,17 @@
 const API='https://www.googleapis.com/drive/v3/', UP='https://www.googleapis.com/upload/drive/v3/files', TAG='pg-journal-v1', CAP=256*1024*1024, FIELDS='id,size,sha256Checksum,appProperties,trashed,ownedByMe,shared,mimeType';
 const fail=(c,m)=>{throw new PGRemote.SourceError(c,m)}, ok=(x,c,m)=>{if(!x)fail(c,m)};
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,110}$/.test(x), hash=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x), kind=x=>x==='commit'||x==='payload';
-// Drive may infer a binary object's MIME type from the actual bytes. This is a finite
-// pilot-format allowlist, not content authorization: all identity, privacy, length and
-// SHA-256 checks remain mandatory. Native Google documents/folders are never accepted.
-const binaryMimes=new Set(['application/octet-stream','application/zip','application/x-zip','application/x-zip-compressed','application/json','text/plain','image/jpeg','image/png','video/mp4']);
+// Provider MIME is descriptive for opaque evidence; it is never used for playback.
+// Accept application and media families, with native/active exclusions.
+// Keep commit formats strict; require binding, privacy, exact length and SHA-256.
 const commitMimes=new Set(['application/octet-stream','application/json','text/plain']);
-const allowedMime=(k,m)=>typeof m==='string'&&(k==='payload'?binaryMimes:k==='commit'?commitMimes:new Set()).has(m);
+const excludedMimes=new Set(['application/javascript','application/x-javascript','application/ecmascript','application/xhtml+xml','application/xml','application/x-shockwave-flash','image/svg+xml']);
+const allowedMime=(k,m)=>{
+ if(typeof m!=='string'||! /^[a-zA-Z0-9][a-zA-Z0-9.+_-]*\/[a-zA-Z0-9][a-zA-Z0-9.+_-]*$/.test(m)||m.length>127)return false;
+ m=m.toLowerCase();if(k==='commit')return commitMimes.has(m);
+ if(k!=='payload'||m.startsWith('application/vnd.google-apps.')||excludedMimes.has(m))return false;
+ return /^(application|image|video|audio)\//.test(m)||m==='text/plain'||m==='text/csv'||m==='text/tab-separated-values';
+};
 const prop=(k,v)=>`appProperties has { key='${k}' and value='${v}' }`;
 const url=(path,params)=>path+'?'+new URLSearchParams(params);
 function create({getToken,fetchImpl=fetch,maxBytes=CAP,maxPages=64}){
