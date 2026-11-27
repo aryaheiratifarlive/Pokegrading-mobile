@@ -32,7 +32,7 @@ async function recoverIdenticalProject(store,restored,progress=()=>{}){
  return {before,after,repaired};
 }
 function openProjectStore(){return new Promise((resolve,reject)=>{
- const req=indexedDB.open('pokegrading-m1-1b-candidate-v1',1);
+ const req=indexedDB.open('pokegrading-m1-2c-r3-disposable-v1',1);
  req.onupgradeneeded=()=>{req.result.createObjectStore('projects',{keyPath:'projectId'});req.result.createObjectStore('media');};req.onerror=()=>reject(req.error);req.onblocked=()=>reject(Error('Close other candidate tabs to open storage'));
  req.onsuccess=()=>{const db=req.result;db.onversionchange=()=>db.close();
  function get(store,key){return new Promise((res,rej)=>{const tx=db.transaction(store),r=key===undefined?tx.objectStore(store).getAll():tx.objectStore(store).get(key);tx.oncomplete=()=>res(r.result);tx.onabort=tx.onerror=()=>rej(tx.error||Error('Read failed'));});}
